@@ -9,7 +9,7 @@ export const CONST = {
         'cookie1',
         // 'cookie2',
         'croissant',
-        'cupcake',
+        // 'cupcake',
         'donut',
         // 'eclair',
         'macaroon',

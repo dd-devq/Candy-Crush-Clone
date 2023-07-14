@@ -1,4 +1,5 @@
 import { CONST } from '../const/const'
+import { Panel } from '../objects/Panel'
 import { Tile } from '../objects/Tile'
 
 export class GameScene extends Phaser.Scene {
@@ -8,8 +9,12 @@ export class GameScene extends Phaser.Scene {
     private firstSelectedTile: Tile | undefined
     private secondSelectedTile: Tile | undefined
 
+    private scoreBoard: Panel
     private idleTime = 0
+
     private readonly IDLE_TIME = 15000
+
+
     constructor() {
         super({
             key: 'GameScene',
@@ -20,13 +25,14 @@ export class GameScene extends Phaser.Scene {
         this.canMove = true
 
         this.cameras.main.setBackgroundColor(0x78aade)
-        for (let x = 0; x < CONST.gridHeight; x++) {
-            for (let y = 0; y < CONST.gridWidth; y++) {
-                const tile = this.addTile(x, y)
-                this.grid.set(this.indexToKey(x, y), tile)
-            }
-        }
+        // for (let x = 0; x < CONST.gridHeight; x++) {
+        //     for (let y = 0; y < CONST.gridWidth; y++) {
+        //         const tile = this.addTile(x, y)
+        //         this.grid.set(this.indexToKey(x, y), tile)
+        //     }
+        // }
 
+        this.scoreBoard = new Panel(this, 100, this.cameras.main.height / 1.25).setDepth(10)
         this.shuffle()
         this.firstSelectedTile = undefined
         this.secondSelectedTile = undefined
@@ -41,7 +47,17 @@ export class GameScene extends Phaser.Scene {
             })
             this.idleTime = 0
         }
-
+        if (this.scoreBoard.newPhase) {
+            this.checkTweensComplete().then(()=>{
+                this.grid.forEach((tile) => {
+                    tile?.stopBurst()
+                    tile?.destroy()
+                })
+                this.grid.clear()
+                this.shuffle()
+            })
+            this.scoreBoard.newPhase = false
+        }
         this.idleTime += delta
 
         this.grid.forEach((tile) => {
@@ -65,7 +81,8 @@ export class GameScene extends Phaser.Scene {
         const shuffleShape = this.getShuffleShape()
         for (let i = 0; i < CONST.gridHeight; i++) {
             for (let j = 0; j < CONST.gridWidth; j++) {
-                const tile = this.grid.get(this.indexToKey(i, j))
+                const tile = this.addTile(i, j)
+                this.grid.set(this.indexToKey(i, j), tile)
                 const value = { value: (i * CONST.gridHeight + j) / (CONST.gridHeight * CONST.gridWidth) }
                 const point = this.getPointFromShape(shuffleShape, value.value)
 
@@ -245,6 +262,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private handle3Mathces(listMatches: string[]): void {
+        let score = 0
 
 
         for (const key of listMatches) {
@@ -263,9 +281,12 @@ export class GameScene extends Phaser.Scene {
             const tile = this.grid.get(key)
             tile?.stopBurst()
             tile?.explode()
-            tile?.setActive(false).setVisible(false)
+            tile?.destroy()
             this.grid.set(key, undefined)
+            score += 10
         }
+        this.scoreBoard.addScore(score)
+
     }
 
 
@@ -294,26 +315,49 @@ export class GameScene extends Phaser.Scene {
     }
 
     private handleGreaterThan3Mathces(listMatches: string[]): void {
+        // Not Good Enough, 4 with 1 burst
+        
+        let score = 0
+        for (const key of listMatches) {
+            const tile = this.grid.get(key)
+            if (tile) {
+                if (tile.isBurst) {
+                    listMatches = this.getAdjacentBurstTiles(key).concat(listMatches)
+                    tile.isBurst = false
+                }
+            }
+        }
+        
+        listMatches = listMatches.filter((elem, index, self)=> {
+            return index === self.indexOf(elem)
+        })
+
+        console.log(listMatches)
+
         for (let i = 0; i < listMatches.length; i++) {
             if (i !== listMatches.length - 1) {
                 const tempTile = this.grid.get(listMatches[i])
-                this.tweens.add({
-                    targets: tempTile,
-                    x: this.grid.get(listMatches[listMatches.length - 1])?.x,
-                    y: this.grid.get(listMatches[listMatches.length - 1])?.y,
-                    duration: 250,
-                    ease: 'sine.in',
-                    repeat: 0,
-                    yoyo: false,
-                    onComplete: () => {
-                        tempTile?.stopBurst()
-                        tempTile?.explode()
-                        tempTile?.setActive(false).setVisible(false)
-                        this.grid.set(listMatches[i], undefined)
-                        this.cameras.main.shake(150, 0.0075)
-                    },
-                    onCompleteScope: this,
-                })
+                if (tempTile !== undefined) {
+
+                    this.tweens.add({
+                        targets: tempTile,
+                        x: this.grid.get(listMatches[listMatches.length - 1])?.x,
+                        y: this.grid.get(listMatches[listMatches.length - 1])?.y,
+                        duration: 250,
+                        ease: 'sine.in',
+                        repeat: 0,
+                        yoyo: false,
+                        onComplete: () => {
+                            score += 10
+                            tempTile?.stopBurst()
+                            tempTile?.explode()
+                            tempTile?.destroy()
+                            this.grid.set(listMatches[i], undefined)
+                            this.cameras.main.shake(150, 0.0075)
+                        },
+                        onCompleteScope: this,
+                    })
+                }
             }
         }
 
@@ -327,6 +371,8 @@ export class GameScene extends Phaser.Scene {
                 burstTile.burst(true)
             }
         }
+
+        this.scoreBoard.addScore(score)
     }
 
     checkTweensComplete() {
