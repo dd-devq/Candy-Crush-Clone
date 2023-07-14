@@ -2,7 +2,7 @@ import { CONST } from '../const/const'
 import { Tile } from '../objects/Tile'
 
 export class GameScene extends Phaser.Scene {
-    private grid: Map<string, Tile> = new Map<string, Tile>()
+    private grid: Map<string, Tile | undefined> = new Map<string, Tile | undefined>()
 
     private init = false
 
@@ -36,9 +36,6 @@ export class GameScene extends Phaser.Scene {
         this.secondSelectedTile = undefined
 
         this.input.on('gameobjectdown', this.tileDown, this)
-
-        // // Check if matches on the start
-        // this.checkMatches()
     }
 
     private createKey(i: number, j: number): string {
@@ -95,6 +92,9 @@ export class GameScene extends Phaser.Scene {
                 )
             }
         }
+        setTimeout(() => {
+            this.checkMatches()
+        }, 2000)
     }
 
 
@@ -173,7 +173,7 @@ export class GameScene extends Phaser.Scene {
                 x: this.secondSelectedTile.x,
                 y: this.secondSelectedTile.y,
                 ease: 'sine.inout',
-                duration: 400,
+                duration: 500,
                 repeat: 0,
                 yoyo: false,
             })
@@ -183,13 +183,13 @@ export class GameScene extends Phaser.Scene {
                 x: this.firstSelectedTile.x,
                 y: this.firstSelectedTile.y,
                 ease: 'sine.inout',
-                duration: 400,
+                duration: 500,
                 repeat: 0,
                 yoyo: false,
                 onComplete: () => {
-                    this.checkMatches()
                     tween1.destroy()
                     tween2.destroy()
+                    this.checkMatches()
                 },
             })
 
@@ -199,10 +199,43 @@ export class GameScene extends Phaser.Scene {
     }
 
     private checkMatches(): void {
-        // this.swapTiles()
-        console.log(this.getMatches())
+        const listMatches = this.getMatches()
+        // console.log(listMatches)
+        if (listMatches.length > 0) {
+            for (const key of listMatches) {
+                this.grid.get(key)?.setActive(false).setVisible(false)
+                this.grid.set(key, undefined)
+            }
+
+            this.updateGrid()
+            this.checkTweensComplete().then(()=>{
+                this.fillTiles()
+                this.checkTweensComplete().then(()=>{
+                    this.checkMatches()    
+                })
+            })              
+        }
+        else {
+            this.swapTiles()
+        }
         this.resetTiles()
     }
+    
+    checkTweensComplete() {
+        return new Promise<void>((resolve) => {
+          const checkComplete = () => {
+            const activeTweens = this.tweens.getTweens()
+            const playingTweens = activeTweens.filter((tween) => tween.isPlaying())
+            if (playingTweens.length === 0) {
+              resolve()
+            } else {
+              setTimeout(checkComplete, 100)
+            }
+          }
+    
+          checkComplete()
+        })
+      }
 
     private indexToKey(x: number, y: number): string {
         return x.toString() + y.toString()
@@ -216,22 +249,22 @@ export class GameScene extends Phaser.Scene {
                 const tile1 = this.grid.get(this.indexToKey(i, j))
                 const tile2 = this.grid.get(this.indexToKey(i, j + 1))
                 if (tile1 && tile2) {
-                        if (tile1.getKey() === tile2.getKey()) {
-                            count += 1
-                            if (j == CONST.gridHeight - 2 && count >= 3) {
-                                for (let k = j - count + 2; k <= j + 1; k++) {
-                                    listKey.push(this.indexToKey(i, k))
-                                }
+                    if (tile1.getKey() === tile2.getKey()) {
+                        count += 1
+                        if (j == CONST.gridHeight - 2 && count >= 3) {
+                            for (let k = j - count + 2; k <= j + 1; k++) {
+                                listKey.push(this.indexToKey(i, k))
                             }
                         }
-                        else {
-                            if (count >= 3) {
-                                for (let k = j - count + 1; k < j + 1; k++) {
-                                    listKey.push(this.indexToKey(i, k))
-                                }
+                    }
+                    else {
+                        if (count >= 3) {
+                            for (let k = j - count + 1; k < j + 1; k++) {
+                                listKey.push(this.indexToKey(i, k))
                             }
-                            count = 1
                         }
+                        count = 1
+                    }
                 }
             }
         }
@@ -246,24 +279,80 @@ export class GameScene extends Phaser.Scene {
                     if (tile1.getKey() === tile2.getKey()) {
                         count += 1
                         if (j == CONST.gridHeight - 2 && count >= 3) {
-                                for (let k = j - count + 2; k <= j + 1; k++) {
-                                    listKey.push(this.indexToKey(k, i))
-                                }
+                            for (let k = j - count + 2; k <= j + 1; k++) {
+                                listKey.push(this.indexToKey(k, i))
                             }
                         }
-                        else {
-                            if (count >= 3) {
-                                for (let k = j - count + 1; k < j + 1; k++) {
-                                    listKey.push(this.indexToKey(k, i))
-                                }
+                    }
+                    else {
+                        if (count >= 3) {
+                            for (let k = j - count + 1; k < j + 1; k++) {
+                                listKey.push(this.indexToKey(k, i))
+                            }
 
-                            }
-                            count = 1
                         }
+                        count = 1
+                    }
                 }
             }
         }
         return listKey
+    }
+
+    private updateGrid(): void {
+        for (let i = CONST.gridWidth - 1; i >= 0; i--) {
+            for (let j = CONST.gridHeight - 1; j > 0; j--) {
+                const currentTile = this.grid.get(this.indexToKey(i, j))
+                const aboveTile = this.grid.get(this.indexToKey(i, j - 1))
+                if (currentTile === undefined && aboveTile !== undefined) {
+                    this.grid.set(this.indexToKey(i, j), aboveTile)
+                    this.grid.set(this.indexToKey(i, j - 1), undefined)
+
+                    this.add.tween({ 
+                        targets: aboveTile, 
+                        y: CONST.tileHeight * j + CONST.tileHeight / 2,
+                        ease: 'sine.inout',
+                        duration: 400,
+                        repeat: 0,
+                        yoyo: false,
+                        onComplete: ()=>{
+                            console.log("Finish Update")
+                        },
+                        onCompleteScope: this,
+                    })
+                    j = CONST.gridHeight
+                }
+            }
+        }
+    }
+
+    private fillTiles():void {
+        for (let i = CONST.gridWidth - 1; i >= 0; i--) {
+            for (let j = CONST.gridHeight - 1; j >= 0; j--) {
+                const currentTile = this.grid.get(this.indexToKey(i, j))
+                if (currentTile === undefined) {
+                    const newTilePosX = i *CONST.tileWidth +CONST.tileWidth/2
+                    const newTilePosY = -1 *CONST.tileHeight+ CONST.tileHeight/2
+                    const newTile = this.addTile(i, j)
+                    newTile.setX(newTilePosX)
+                    newTile.setY(newTilePosY)
+                    this.grid.set(this.indexToKey(i, j), newTile)
+                    // console.log(this.grid.get(this.indexToKey(i, j))?.getKey())
+                    this.add.tween({ 
+                        targets: newTile, 
+                        y: CONST.tileHeight * j + CONST.tileHeight / 2,
+                        ease: 'sine.inout',
+                        duration: 300,
+                        repeat: 0,
+                        yoyo: false,
+                        onComplete: ()=>{
+                            console.log("Add New Tiles")
+                        },
+                        onCompleteScope: this,
+                    })
+                }
+            }
+        }
     }
 
     // Get Hint Tiles
