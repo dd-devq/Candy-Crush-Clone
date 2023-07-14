@@ -113,19 +113,27 @@ export class Tile extends Phaser.GameObjects.Image {
         }
         else {
             this.burstParticleEmitter = this.scene.add.particles(this.x, this.y, 'flares',
-            {
-                frame: 'white',
-                color: [0xfacc22, 0xf89800, 0xf83600, 0x9f0404],
-                colorEase: 'quad.out',
-                lifespan: 1250,
-                angle: { min: -150, max: -50 },
-                scale: { start: 0.5, end: 0, ease: 'sine.out' },
-                speed: 100,
-                advance: 1000,
-                blendMode: 'ADD'
-            }).setDepth(-1)
+                {
+                    frame: 'white',
+                    color: [0xfacc22, 0xf89800, 0xf83600, 0x9f0404],
+                    colorEase: 'quad.out',
+                    lifespan: 1250,
+                    angle: { min: -150, max: -50 },
+                    scale: { start: 0.5, end: 0, ease: 'sine.out' },
+                    speed: 100,
+                    advance: 1000,
+                    blendMode: 'ADD'
+                }).setDepth(-1)
         }
     }
+
+    public stopBurst():void {
+        if (this.burstParticleEmitter) {
+
+        this.burstParticleEmitter.setActive(false).setVisible(false)
+        this.burstParticleEmitter.stop()
+    }
+}
 
 
     public showIdleEffect(): void {
@@ -150,5 +158,13 @@ export class Tile extends Phaser.GameObjects.Image {
 
     public getKey(): string {
         return this.texture.key
+    }
+
+    public update(): void {
+        if (this.isBurst) {
+
+            this.burstParticleEmitter.x = this.x
+            this.burstParticleEmitter.y = this.y
+        }
     }
 }

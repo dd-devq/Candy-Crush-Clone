@@ -43,6 +43,10 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.idleTime += delta
+
+        this.grid.forEach((tile) => {
+            tile?.update()
+        })
     }
 
     private addTile(x: number, y: number): Tile {
@@ -207,6 +211,7 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+
     private checkMatches(): void {
         const listMatches = this.getMatches()
 
@@ -252,19 +257,20 @@ export class GameScene extends Phaser.Scene {
             }
         }
 
-        console.log(listMatches)
+        // console.log(listMatches)
 
         for (const key of listMatches) {
             const tile = this.grid.get(key)
-                tile?.explode()
-                tile?.setActive(false).setVisible(false)
-                this.grid.set(key, undefined)
-            }
+            tile?.stopBurst()
+            tile?.explode()
+            tile?.setActive(false).setVisible(false)
+            this.grid.set(key, undefined)
+        }
     }
-    
+
 
     private getAdjacentBurstTiles(indexKey: string): string[] {
-        const direction:{[key:number]:{x:number, y:number}} = {
+        const direction: { [key: number]: { x: number, y: number } } = {
             0: { x: -1, y: -1 },
             1: { x: -1, y: 0 },
             2: { x: -1, y: 1 },
@@ -277,7 +283,7 @@ export class GameScene extends Phaser.Scene {
 
         const keyX = parseInt(indexKey[0])
         const keyY = parseInt(indexKey[1])
-        const listBurstTile : string[]= []
+        const listBurstTile: string[] = []
         for (let i = 0; i < 8; i++) {
             const tileKey = this.indexToKey(keyX + direction[i].x, keyY + direction[i].y)
             if (this.grid.get(tileKey) !== undefined) {
@@ -300,6 +306,7 @@ export class GameScene extends Phaser.Scene {
                     repeat: 0,
                     yoyo: false,
                     onComplete: () => {
+                        tempTile?.stopBurst()
                         tempTile?.explode()
                         tempTile?.setActive(false).setVisible(false)
                         this.grid.set(listMatches[i], undefined)
