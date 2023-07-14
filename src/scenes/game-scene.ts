@@ -4,15 +4,12 @@ import { Tile } from '../objects/Tile'
 export class GameScene extends Phaser.Scene {
     private grid: Map<string, Tile | undefined> = new Map<string, Tile | undefined>()
 
-    private init = false
-
     private canMove: boolean
-
     private firstSelectedTile: Tile | undefined
     private secondSelectedTile: Tile | undefined
 
-    private tileTweenSelect: Phaser.Tweens.BaseTween
-
+    private idleTime = 0
+    private readonly IDLE_TIME = 15000
     constructor() {
         super({
             key: 'GameScene',
@@ -20,14 +17,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     create(): void {
-
         this.canMove = true
 
         this.cameras.main.setBackgroundColor(0x78aade)
         for (let x = 0; x < CONST.gridHeight; x++) {
             for (let y = 0; y < CONST.gridWidth; y++) {
                 const tile = this.addTile(x, y)
-                this.grid.set(this.createKey(x, y), tile)
+                this.grid.set(this.indexToKey(x, y), tile)
             }
         }
 
@@ -38,8 +34,15 @@ export class GameScene extends Phaser.Scene {
         this.input.on('gameobjectdown', this.tileDown, this)
     }
 
-    private createKey(i: number, j: number): string {
-        return i.toString() + j.toString()
+    update(time: number, delta: number): void {
+        if (this.IDLE_TIME <= this.idleTime) {
+            this.grid.forEach((tile) => {
+                tile?.showIdleEffect()
+            })
+            this.idleTime = 0
+        }
+
+        this.idleTime += delta
     }
 
     private addTile(x: number, y: number): Tile {
@@ -58,7 +61,7 @@ export class GameScene extends Phaser.Scene {
         const shuffleShape = this.getShuffleShape()
         for (let i = 0; i < CONST.gridHeight; i++) {
             for (let j = 0; j < CONST.gridWidth; j++) {
-                const tile = this.grid.get(this.createKey(i, j))
+                const tile = this.grid.get(this.indexToKey(i, j))
                 const value = { value: (i * CONST.gridHeight + j) / (CONST.gridHeight * CONST.gridWidth) }
                 const point = this.getPointFromShape(shuffleShape, value.value)
 
@@ -94,7 +97,7 @@ export class GameScene extends Phaser.Scene {
         }
         setTimeout(() => {
             this.checkMatches()
-        }, 2000)
+        }, 2100)
     }
 
 
@@ -122,6 +125,7 @@ export class GameScene extends Phaser.Scene {
     private tileDown(pointer: Phaser.Input.Pointer, gameobject: Tile): void {
 
         if (this.canMove) {
+            this.idleTime = 0
             if (this.firstSelectedTile === undefined) {
                 this.firstSelectedTile = gameobject
                 this.firstSelectedTile.showSelectEffect()
@@ -164,7 +168,7 @@ export class GameScene extends Phaser.Scene {
 
     private swapTiles(): void {
         if (this.firstSelectedTile !== undefined && this.secondSelectedTile !== undefined) {
-
+            this.idleTime = 0
             this.grid.set(this.getTileKey(this.firstSelectedTile?.x, this.firstSelectedTile?.y), this.secondSelectedTile)
             this.grid.set(this.getTileKey(this.secondSelectedTile?.x, this.secondSelectedTile?.y), this.firstSelectedTile)
 
@@ -172,16 +176,19 @@ export class GameScene extends Phaser.Scene {
                 targets: this.firstSelectedTile,
                 x: this.secondSelectedTile.x,
                 y: this.secondSelectedTile.y,
+                rotation: Phaser.Math.PI2,
                 ease: 'sine.inout',
                 duration: 500,
                 repeat: 0,
                 yoyo: false,
             })
 
+
             const tween2 = this.add.tween({
                 targets: this.secondSelectedTile,
                 x: this.firstSelectedTile.x,
                 y: this.firstSelectedTile.y,
+                rotation: Phaser.Math.PI2,
                 ease: 'sine.inout',
                 duration: 500,
                 repeat: 0,
@@ -193,6 +200,8 @@ export class GameScene extends Phaser.Scene {
                 },
             })
 
+
+
             this.firstSelectedTile = this.grid.get(this.getTileKey(this.firstSelectedTile?.x, this.firstSelectedTile?.y))
             this.secondSelectedTile = this.grid.get(this.getTileKey(this.secondSelectedTile?.x, this.secondSelectedTile?.y))
         }
@@ -200,10 +209,10 @@ export class GameScene extends Phaser.Scene {
 
     private checkMatches(): void {
         const listMatches = this.getMatches()
-        
-        for (const list of listMatches) {
-            console.log(list)
-        }
+
+        // for (const list of listMatches) {
+        //     console.log(list)
+        // }
 
         if (listMatches.length > 0) {
             for (const listKey of listMatches) {
@@ -214,73 +223,127 @@ export class GameScene extends Phaser.Scene {
                 }
             }
 
-            this.checkTweensComplete().then(()=>{
+            this.checkTweensComplete().then(() => {
                 this.updateGrid()
             })
-            this.checkTweensComplete().then(()=>{
+            this.checkTweensComplete().then(() => {
                 this.fillTiles()
-                this.checkTweensComplete().then(()=>{
-                    this.checkMatches()    
+                this.checkTweensComplete().then(() => {
+                    this.checkMatches()
                 })
-            }) }
+            })
+        }
         else {
             this.swapTiles()
         }
         this.resetTiles()
     }
 
-    private handle3Mathces(listMatches:string[]):void {
+    private handle3Mathces(listMatches: string[]): void {
+
+
         for (const key of listMatches) {
-            this.grid.get(key)?.setActive(false).setVisible(false)
-            this.grid.set(key, undefined)
+            const tile = this.grid.get(key)
+            if (tile) {
+                if (tile.isBurst) {
+                    listMatches = listMatches.concat(this.getAdjacentBurstTiles(key))
+                    tile.isBurst = false
+                }
+            }
         }
 
+        console.log(listMatches)
+
+        for (const key of listMatches) {
+            const tile = this.grid.get(key)
+                tile?.explode()
+                tile?.setActive(false).setVisible(false)
+                this.grid.set(key, undefined)
+            }
+    }
+    
+
+    private getAdjacentBurstTiles(indexKey: string): string[] {
+        const direction:{[key:number]:{x:number, y:number}} = {
+            0: { x: -1, y: -1 },
+            1: { x: -1, y: 0 },
+            2: { x: -1, y: 1 },
+            3: { x: 0, y: -1 },
+            4: { x: 0, y: 1 },
+            5: { x: 1, y: -1 },
+            6: { x: 1, y: 0 },
+            7: { x: 1, y: 1 },
+        }
+
+        const keyX = parseInt(indexKey[0])
+        const keyY = parseInt(indexKey[1])
+        const listBurstTile : string[]= []
+        for (let i = 0; i < 8; i++) {
+            const tileKey = this.indexToKey(keyX + direction[i].x, keyY + direction[i].y)
+            if (this.grid.get(tileKey) !== undefined) {
+                listBurstTile.push(tileKey)
+            }
+        }
+        return listBurstTile
     }
 
-    private handleGreaterThan3Mathces(listMatches:string[]):void {
+    private handleGreaterThan3Mathces(listMatches: string[]): void {
         for (let i = 0; i < listMatches.length; i++) {
-            if (i !==listMatches.length-1) {
+            if (i !== listMatches.length - 1) {
                 const tempTile = this.grid.get(listMatches[i])
                 this.tweens.add({
                     targets: tempTile,
-                    x: this.grid.get(listMatches[listMatches.length -1])?.x,
-                    y: this.grid.get(listMatches[listMatches.length-1])?.y,
-                    duration: 300,
+                    x: this.grid.get(listMatches[listMatches.length - 1])?.x,
+                    y: this.grid.get(listMatches[listMatches.length - 1])?.y,
+                    duration: 250,
                     ease: 'sine.in',
                     repeat: 0,
                     yoyo: false,
-                    onComplete: ()=>{
+                    onComplete: () => {
+                        tempTile?.explode()
                         tempTile?.setActive(false).setVisible(false)
                         this.grid.set(listMatches[i], undefined)
+                        this.cameras.main.shake(150, 0.0075)
                     },
                     onCompleteScope: this,
                 })
             }
         }
+
+        const burstTile = this.grid.get(listMatches[listMatches.length - 1])
+        if (burstTile) {
+            burstTile.isBurst = true
+            if (listMatches.length == 4) {
+                burstTile.burst(false)
+            }
+            else {
+                burstTile.burst(true)
+            }
+        }
     }
-    
+
     checkTweensComplete() {
         return new Promise<void>((resolve) => {
-          const checkComplete = () => {
-            const activeTweens = this.tweens.getTweens()
-            const playingTweens = activeTweens.filter((tween) => tween.isPlaying())
-            if (playingTweens.length === 0) {
-              resolve()
-            } else {
-              setTimeout(checkComplete, 100)
+            const checkComplete = () => {
+                const activeTweens = this.tweens.getTweens()
+                const playingTweens = activeTweens.filter((tween) => tween.isPlaying())
+                if (playingTweens.length === 0) {
+                    resolve()
+                } else {
+                    setTimeout(checkComplete, 100)
+                }
             }
-          }
-    
-          checkComplete()
+
+            checkComplete()
         })
-      }
+    }
 
     private indexToKey(x: number, y: number): string {
         return x.toString() + y.toString()
     }
 
     private getMatches(): string[][] {
-        const listOfListKey :string[][]= []
+        const listOfListKey: string[][] = []
         let listKey: string[] = []
         for (let i = 0; i < CONST.gridWidth; i++) {
             let count = 1
@@ -296,7 +359,7 @@ export class GameScene extends Phaser.Scene {
                             }
                             listOfListKey.push(listKey)
                             listKey = []
-                
+
                         }
                     }
                     else {
@@ -306,7 +369,7 @@ export class GameScene extends Phaser.Scene {
                             }
                             listOfListKey.push(listKey)
                             listKey = []
-                                        }
+                        }
                         count = 1
                     }
                 }
@@ -328,7 +391,7 @@ export class GameScene extends Phaser.Scene {
                             }
                             listOfListKey.push(listKey)
                             listKey = []
-                                        }
+                        }
                     }
                     else {
                         if (count >= 3) {
@@ -337,7 +400,7 @@ export class GameScene extends Phaser.Scene {
                             }
                             listOfListKey.push(listKey)
                             listKey = []
-                
+
                         }
                         count = 1
                     }
@@ -356,15 +419,15 @@ export class GameScene extends Phaser.Scene {
                     this.grid.set(this.indexToKey(i, j), aboveTile)
                     this.grid.set(this.indexToKey(i, j - 1), undefined)
 
-                    this.add.tween({ 
-                        targets: aboveTile, 
+                    this.add.tween({
+                        targets: aboveTile,
                         y: CONST.tileHeight * j + CONST.tileHeight / 2,
                         ease: 'sine.inout',
                         duration: 400,
                         repeat: 0,
                         yoyo: false,
-                        onComplete: ()=>{
-                            console.log("Finish Update")
+                        onComplete: () => {
+                            // console.log("Finish Update")
                         },
                         onCompleteScope: this,
                     })
@@ -374,27 +437,27 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    private fillTiles():void {
+    private fillTiles(): void {
         for (let i = CONST.gridWidth - 1; i >= 0; i--) {
             for (let j = CONST.gridHeight - 1; j >= 0; j--) {
                 const currentTile = this.grid.get(this.indexToKey(i, j))
                 if (currentTile === undefined) {
-                    const newTilePosX = i *CONST.tileWidth +CONST.tileWidth/2
-                    const newTilePosY = -1 *CONST.tileHeight+ CONST.tileHeight/2
+                    const newTilePosX = i * CONST.tileWidth + CONST.tileWidth / 2
+                    const newTilePosY = -1 * CONST.tileHeight + CONST.tileHeight / 2
                     const newTile = this.addTile(i, j)
                     newTile.setX(newTilePosX)
                     newTile.setY(newTilePosY)
                     this.grid.set(this.indexToKey(i, j), newTile)
                     // console.log(this.grid.get(this.indexToKey(i, j))?.getKey())
-                    this.add.tween({ 
-                        targets: newTile, 
+                    this.add.tween({
+                        targets: newTile,
                         y: CONST.tileHeight * j + CONST.tileHeight / 2,
                         ease: 'sine.inout',
                         duration: 300,
                         repeat: 0,
                         yoyo: false,
-                        onComplete: ()=>{
-                            console.log("Add New Tiles")
+                        onComplete: () => {
+                            // console.log("Add New Tiles")
                         },
                         onCompleteScope: this,
                     })
@@ -406,268 +469,4 @@ export class GameScene extends Phaser.Scene {
     // Get Hint Tiles
 
     // Show Hint Tiles
-
-
-
-    // private swapTiles(): void {
-    //     if (this.firstSelectedTile && this.secondSelectedTile) {
-    //         // Get the position of the two tiles
-    //         const firstTilePosition = {
-    //             x: this.firstSelectedTile.x,
-    //             y: this.firstSelectedTile.y,
-    //         }
-
-    //         const secondTilePosition = {
-    //             x: this.secondSelectedTile.x,
-    //             y: this.secondSelectedTile.y,
-    //         }
-
-    //         // Swap them in our grid with the tiles
-    //         this.tileGrid[firstTilePosition.y / CONST.tileHeight][
-    //             firstTilePosition.x / CONST.tileWidth
-    //         ] = this.secondSelectedTile
-    //         this.tileGrid[secondTilePosition.y / CONST.tileHeight][
-    //             secondTilePosition.x / CONST.tileWidth
-    //         ] = this.firstSelectedTile
-
-    //         // Move them on the screen with tweens
-    //         this.add.tween({
-    //             targets: this.firstSelectedTile,
-    //             x: this.secondSelectedTile.x,
-    //             y: this.secondSelectedTile.y,
-    //             ease: 'sine.inout',
-    //             duration: 400,
-    //             repeat: 0,
-    //             yoyo: false,
-    //         })
-
-    //         this.add.tween({
-    //             targets: this.secondSelectedTile,
-    //             x: this.firstSelectedTile.x,
-    //             y: this.firstSelectedTile.y,
-    //             ease: 'sine.inout',
-    //             duration: 400,
-    //             repeat: 0,
-    //             yoyo: false,
-    //             onComplete: () => {
-    //                 this.checkMatches()
-    //             },
-    //         })
-
-    //         this.firstSelectedTile =
-    //             this.tileGrid[firstTilePosition.y / CONST.tileHeight][
-    //             firstTilePosition.x / CONST.tileWidth
-    //             ]
-    //         this.secondSelectedTile =
-    //             this.tileGrid[secondTilePosition.y / CONST.tileHeight][
-    //             secondTilePosition.x / CONST.tileWidth
-    //             ]
-    //     }
-    // }
-
-    // private checkMatches(): void {
-    //     //Call the getMatches function to check for spots where there is
-    //     //a run of three or more tiles in a row
-    //     const matches = this.getMatches(this.tileGrid)
-
-    //     //If there are matches, remove them
-    //     if (matches.length > 0) {
-    //         //Remove the tiles
-    //         this.removeTileGroup(matches)
-    //         // Move the tiles currently on the board into their new positions
-    //         this.resetTile()
-    //         //Fill the board with new tiles wherever there is an empty spot
-    //         this.fillTile()
-    //         this.tileUp()
-    //         this.checkMatches()
-    //     } else {
-    //         // No match so just swap the tiles back to their original position and reset
-    //         this.swapTiles()
-    //         this.tileUp()
-    //         this.canMove = true
-    //     }
-    // }
-
-    // private resetTile(): void {
-    //     // Loop through each column starting from the left
-    //     for (let y = this.tileGrid.length - 1; y > 0; y--) {
-    //         // Loop through each tile in column from bottom to top
-    //         for (let x = this.tileGrid[y].length - 1; x > 0; x--) {
-    //             // If this space is blank, but the one above it is not, move the one above down
-    //             if (this.tileGrid[y][x] === undefined && this.tileGrid[y - 1][x] !== undefined) {
-    //                 // Move the tile above down one
-    //                 const tempTile = this.tileGrid[y - 1][x]
-    //                 this.tileGrid[y][x] = tempTile
-    //                 this.tileGrid[y - 1][x] = undefined
-
-    //                 this.add.tween({
-    //                     targets: tempTile,
-    //                     y: CONST.tileHeight * y,
-    //                     ease: 'Linear',
-    //                     duration: 200,
-    //                     repeat: 0,
-    //                     yoyo: false,
-    //                 })
-
-    //                 //The positions have changed so start this process again from the bottom
-    //                 //NOTE: This is not set to me.tileGrid[i].length - 1 because it will immediately be decremented as
-    //                 //we are at the end of the loop.
-    //                 x = this.tileGrid[y].length
-    //             }
-    //         }
-    //     }
-    // }
-
-    // private fillTile(): void {
-    //     //Check for blank spaces in the grid and add new tiles at that position
-    //     for (let y = 0; y < this.tileGrid.length; y++) {
-    //         for (let x = 0; x < this.tileGrid[y].length; x++) {
-    //             if (this.tileGrid[y][x] === undefined) {
-    //                 //Found a blank spot so lets add animate a tile there
-    //                 const tile = this.addTile(x, y)
-
-    //                 //And also update our "theoretical" grid
-    //                 this.tileGrid[y][x] = tile
-    //             }
-    //         }
-    //     }
-    // }
-
-    // private tileUp(): void {
-    //     // Reset active tiles
-    //     this.firstSelectedTile = undefined
-    //     this.secondSelectedTile = undefined
-    // }
-
-    // private removeTileGroup(matches: any): void {
-    //     // Loop through all the matches and remove the associated tiles
-    //     for (let i = 0; i < matches.length; i++) {
-    //         const tempArr = matches[i]
-
-    //         for (let j = 0; j < tempArr.length; j++) {
-    //             const tile = tempArr[j]
-    //             //Find where this tile lives in the theoretical grid
-    //             const tilePos = this.getTilePos(this.tileGrid, tile)
-
-    //             // Remove the tile from the theoretical grid
-    //             if (tilePos.x !== -1 && tilePos.y !== -1) {
-    //                 tile.destroy()
-    //                 this.tileGrid[tilePos.y][tilePos.x] = undefined
-    //             }
-    //         }
-    //     }
-    // }
-
-    // private getTilePos(tileGrid: (Tile | undefined)[][], tile: Tile): any {
-    //     const pos = { x: -1, y: -1 }
-
-    //     //Find the position of a specific tile in the grid
-    //     for (let y = 0; y < tileGrid.length; y++) {
-    //         for (let x = 0; x < tileGrid[y].length; x++) {
-    //             //There is a match at this position so return the grid coords
-    //             if (tile === tileGrid[y][x]) {
-    //                 pos.x = x
-    //                 pos.y = y
-    //                 break
-    //             }
-    //         }
-    //     }
-
-    //     return pos
-    // }
-
-
-
-    // private getMatches(tileGrid: (Tile | undefined)[][]): Tile[][] {
-    //     const matches: Tile[][] = []
-    //     let groups: Tile[] = []
-
-    //     // Check for horizontal matches
-    //     for (let y = 0; y < tileGrid.length; y++) {
-    //         const tempArray = tileGrid[y]
-    //         groups = []
-    //         for (let x = 0; x < tempArray.length; x++) {
-    //             if (x < tempArray.length - 2) {
-    //                 if (tileGrid[y][x] && tileGrid[y][x + 1] && tileGrid[y][x + 2]) {
-    //                     if (
-    //                         tileGrid[y][x]?.texture.key === tileGrid[y][x + 1]?.texture.key &&
-    //                         tileGrid[y][x + 1]?.texture.key === tileGrid[y][x + 2]?.texture.key
-    //                     ) {
-    //                         const tile1 = tileGrid[y][x]
-    //                         const tile2 = tileGrid[y][x + 1]
-    //                         const tile3 = tileGrid[y][x + 2]
-    //                         if (tile1 !== undefined && tile2 !== undefined && tile3 !== undefined) {
-    //                             if (groups.length > 0) {
-    //                                 if (groups.indexOf(tile1) == -1) {
-    //                                     matches.push(groups)
-    //                                     groups = []
-    //                                 }
-    //                             }
-
-    //                             if (groups.indexOf(tile1) == -1) {
-    //                                 groups.push(tile1)
-    //                             }
-
-    //                             if (groups.indexOf(tile2) == -1) {
-    //                                 groups.push(tile2)
-    //                             }
-
-    //                             if (groups.indexOf(tile3) == -1) {
-    //                                 groups.push(tile3)
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-    //         if (groups.length > 0) {
-    //             matches.push(groups)
-    //         }
-    //     }
-
-    //     //Check for vertical matches
-    //     for (let j = 0; j < tileGrid.length; j++) {
-    //         const tempArr = tileGrid[j]
-    //         groups = []
-    //         for (let i = 0; i < tempArr.length; i++) {
-    //             if (i < tempArr.length - 2)
-    //                 if (tileGrid[i][j] && tileGrid[i + 1][j] && tileGrid[i + 2][j]) {
-    //                     if (
-    //                         tileGrid[i][j]?.texture.key === tileGrid[i + 1][j]?.texture.key &&
-    //                         tileGrid[i + 1][j]?.texture.key === tileGrid[i + 2][j]?.texture.key
-    //                     ) {
-    //                         const tile1 = tileGrid[i][j]
-    //                         const tile2 = tileGrid[i + 1][j]
-    //                         const tile3 = tileGrid[i + 2][j]
-    //                         if (tile1 !== undefined && tile2 !== undefined && tile3 !== undefined) {
-    //                             if (groups.length > 0) {
-    //                                 if (groups.indexOf(tile1) == -1) {
-    //                                     matches.push(groups)
-    //                                     groups = []
-    //                                 }
-    //                             }
-
-    //                             if (groups.indexOf(tile1) == -1) {
-    //                                 groups.push(tile1)
-    //                             }
-    //                             if (groups.indexOf(tile2) == -1) {
-    //                                 groups.push(tile2)
-    //                             }
-    //                             if (groups.indexOf(tile3) == -1) {
-    //                                 groups.push(tile3)
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //         }
-    //         if (groups.length > 0) matches.push(groups)
-    //     }
-
-    //     return matches
-    // }
-
-    // private shuffleTiles(): void {
-    //     //
-    // }
 }

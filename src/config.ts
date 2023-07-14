@@ -4,7 +4,7 @@ import { GameScene } from './scenes/game-scene'
 export const GameConfig: Phaser.Types.Core.GameConfig = {
     title: 'Candy crush',
     version: '2.0',
-    width: 520,
+    width: 640,
     height: window.innerHeight,
     type: Phaser.AUTO,
     parent: 'game',
