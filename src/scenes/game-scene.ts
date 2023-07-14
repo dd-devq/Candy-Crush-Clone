@@ -200,25 +200,63 @@ export class GameScene extends Phaser.Scene {
 
     private checkMatches(): void {
         const listMatches = this.getMatches()
-        // console.log(listMatches)
+        
+        for (const list of listMatches) {
+            console.log(list)
+        }
+
         if (listMatches.length > 0) {
-            for (const key of listMatches) {
-                this.grid.get(key)?.setActive(false).setVisible(false)
-                this.grid.set(key, undefined)
+            for (const listKey of listMatches) {
+                if (listKey.length == 3) {
+                    this.handle3Mathces(listKey)
+                } else {
+                    this.handleGreaterThan3Mathces(listKey)
+                }
             }
 
-            this.updateGrid()
+            this.checkTweensComplete().then(()=>{
+                this.updateGrid()
+            })
             this.checkTweensComplete().then(()=>{
                 this.fillTiles()
                 this.checkTweensComplete().then(()=>{
                     this.checkMatches()    
                 })
-            })              
-        }
+            }) }
         else {
             this.swapTiles()
         }
         this.resetTiles()
+    }
+
+    private handle3Mathces(listMatches:string[]):void {
+        for (const key of listMatches) {
+            this.grid.get(key)?.setActive(false).setVisible(false)
+            this.grid.set(key, undefined)
+        }
+
+    }
+
+    private handleGreaterThan3Mathces(listMatches:string[]):void {
+        for (let i = 0; i < listMatches.length; i++) {
+            if (i !==listMatches.length-1) {
+                const tempTile = this.grid.get(listMatches[i])
+                this.tweens.add({
+                    targets: tempTile,
+                    x: this.grid.get(listMatches[listMatches.length -1])?.x,
+                    y: this.grid.get(listMatches[listMatches.length-1])?.y,
+                    duration: 300,
+                    ease: 'sine.in',
+                    repeat: 0,
+                    yoyo: false,
+                    onComplete: ()=>{
+                        tempTile?.setActive(false).setVisible(false)
+                        this.grid.set(listMatches[i], undefined)
+                    },
+                    onCompleteScope: this,
+                })
+            }
+        }
     }
     
     checkTweensComplete() {
@@ -241,8 +279,9 @@ export class GameScene extends Phaser.Scene {
         return x.toString() + y.toString()
     }
 
-    private getMatches(): string[] {
-        const listKey: string[] = []
+    private getMatches(): string[][] {
+        const listOfListKey :string[][]= []
+        let listKey: string[] = []
         for (let i = 0; i < CONST.gridWidth; i++) {
             let count = 1
             for (let j = 0; j < CONST.gridHeight - 1; j++) {
@@ -255,6 +294,9 @@ export class GameScene extends Phaser.Scene {
                             for (let k = j - count + 2; k <= j + 1; k++) {
                                 listKey.push(this.indexToKey(i, k))
                             }
+                            listOfListKey.push(listKey)
+                            listKey = []
+                
                         }
                     }
                     else {
@@ -262,7 +304,9 @@ export class GameScene extends Phaser.Scene {
                             for (let k = j - count + 1; k < j + 1; k++) {
                                 listKey.push(this.indexToKey(i, k))
                             }
-                        }
+                            listOfListKey.push(listKey)
+                            listKey = []
+                                        }
                         count = 1
                     }
                 }
@@ -282,21 +326,25 @@ export class GameScene extends Phaser.Scene {
                             for (let k = j - count + 2; k <= j + 1; k++) {
                                 listKey.push(this.indexToKey(k, i))
                             }
-                        }
+                            listOfListKey.push(listKey)
+                            listKey = []
+                                        }
                     }
                     else {
                         if (count >= 3) {
                             for (let k = j - count + 1; k < j + 1; k++) {
                                 listKey.push(this.indexToKey(k, i))
                             }
-
+                            listOfListKey.push(listKey)
+                            listKey = []
+                
                         }
                         count = 1
                     }
                 }
             }
         }
-        return listKey
+        return listOfListKey
     }
 
     private updateGrid(): void {

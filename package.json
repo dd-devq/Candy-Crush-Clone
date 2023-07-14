@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Typescript template project",
   "main": "index.js",
-  "homepage": "https://username.github.io/repo-name/",
+  "homepage": "https://dd-devq.github.io/Candy-Crush-Clone/",
   "scripts": {
     "dev": "webpack serve --config webpack/webpack.dev.js",
     "build": "rimraf dist && webpack --config webpack/webpack.prod.js",
