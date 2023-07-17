@@ -15,9 +15,7 @@ export class GameScene extends Phaser.Scene {
 
     private scoreBoard: Panel
     private idleTime = 0
-    private hintTime =0
-    private readonly IDLE_TIME = 10000
-    private readonly HINT_TIME = 6000
+    private readonly IDLE_TIME = 5000
     private boardState: boardState
 
     constructor() {
@@ -30,7 +28,7 @@ export class GameScene extends Phaser.Scene {
 
         this.cameras.main.setBackgroundColor(0x78aade)
         this.scoreBoard = new Panel(this, this.cameras.main.width / 2 - 250, this.cameras.main.height / 1.25).setDepth(10)
-        
+
         this.shuffle()
         this.firstSelectedTile = undefined
         this.secondSelectedTile = undefined
@@ -40,24 +38,23 @@ export class GameScene extends Phaser.Scene {
 
     update(time: number, delta: number): void {
         this.idleTime += delta
-        this.hintTime += delta
 
-        if (this.IDLE_TIME <= this.idleTime) {
+        if (this.IDLE_TIME <= this.idleTime && this.boardState == boardState.IDLE) {
             this.grid.forEach((tile) => {
                 tile?.showIdleEffect()
             })
+
+            const hintList = this.hintTiles()
+            this.checkTweensComplete().then(() => {
+                const index = Phaser.Math.RND.between(0, hintList.length - 1)
+                for (const key of hintList[index]) {
+                    this.grid.get(key)?.showHintEffect()
+                }
+            })
+
             this.idleTime = 0
         }
 
-        if (this.boardState == boardState.IDLE && this.hintTime >= this.HINT_TIME) {
-        const hintList = this.hintTiles()
-            
-            const index = Phaser.Math.RND.between(0, hintList.length -1)
-            for (const key of hintList[index]) {
-                this.grid.get(key)?.showHintEffect()
-            }
-            this.hintTime = 0
-        }
 
         this.grid.forEach((tile) => {
             tile?.update()
@@ -70,9 +67,10 @@ export class GameScene extends Phaser.Scene {
                     tile?.destroy()
                 })
                 this.grid.clear()
-            this.checkTweensComplete().then(() => {
+                this.checkTweensComplete().then(() => {
 
-                this.shuffle()})
+                    this.shuffle()
+                })
             })
             this.scoreBoard.newPhase = false
         }
@@ -94,6 +92,8 @@ export class GameScene extends Phaser.Scene {
         this.boardState = boardState.ACTIVE
         for (let i = 0; i < CONST.gridHeight; i++) {
             for (let j = 0; j < CONST.gridWidth; j++) {
+                this.grid.get(this.indexToKey(i, j))?.stopBurst()
+                this.grid.get(this.indexToKey(i, j))?.destroy()
                 this.grid.set(this.indexToKey(i, j), undefined)
             }
         }
@@ -168,6 +168,8 @@ export class GameScene extends Phaser.Scene {
 
     private tileDown(pointer: Phaser.Input.Pointer, gameobject: Tile): void {
         this.idleTime = 0
+        this.boardState = boardState.ACTIVE
+
         if (this.firstSelectedTile === undefined) {
             this.firstSelectedTile = gameobject
             this.firstSelectedTile.showSelectEffect()
@@ -188,6 +190,7 @@ export class GameScene extends Phaser.Scene {
                 this.firstSelectedTile.showSelectEffect()
             }
         }
+
     }
 
     private isAdjacentTile(tile1: Tile, tile2: Tile): boolean {
@@ -207,7 +210,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     private swapTiles(): void {
-        this.boardState = boardState.ACTIVE
         if (this.firstSelectedTile !== undefined && this.secondSelectedTile !== undefined) {
             this.idleTime = 0
             this.grid.set(this.getTileKey(this.firstSelectedTile?.x, this.firstSelectedTile?.y), this.secondSelectedTile)
@@ -247,7 +249,6 @@ export class GameScene extends Phaser.Scene {
 
 
     private checkMatches(): void {
-        this.boardState = boardState.ACTIVE
         const listMatches = this.getMatches()
 
         if (listMatches.length > 0) {
@@ -262,22 +263,20 @@ export class GameScene extends Phaser.Scene {
 
             this.checkTweensComplete().then(() => {
                 this.updateGrid()
-                // this.checkTweensComplete().then(() => {
                 this.fillTiles()
                 this.checkTweensComplete().then(() => {
                     this.checkMatches()
+                    this.idleTime = 0
                 })
-                // })
             })
-            this.idleTime = 0
+            this.boardState = boardState.ACTIVE
+
         }
         else {
             this.swapTiles()
         }
 
-        this.checkTweensComplete().then(()=> {
             this.resetTiles()
-        })
     }
 
     private getAdjacentBurstTiles(indexKey: string): string[] {
@@ -373,6 +372,7 @@ export class GameScene extends Phaser.Scene {
                 }
             }
         })
+
     }
 
     checkTweensComplete() {
@@ -553,7 +553,7 @@ export class GameScene extends Phaser.Scene {
 
             for (let j = 0; j < CONST.gridWidth; j++) {
                 const tile1Key = this.indexToKey(i, j)
-                const tile2Key = this.indexToKey(i +1, j)
+                const tile2Key = this.indexToKey(i + 1, j)
                 const tile1 = this.grid.get(tile1Key)
                 const tile2 = this.grid.get(tile2Key)
 

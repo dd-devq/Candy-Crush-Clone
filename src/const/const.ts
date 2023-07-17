@@ -8,7 +8,7 @@ export const CONST = {
     candyTypes: [
         'cookie1',
         // 'cookie2',
-        // 'croissant',
+        'croissant',
         // 'cupcake',
         'donut',
         // 'eclair',

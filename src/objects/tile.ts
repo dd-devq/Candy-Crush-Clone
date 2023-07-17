@@ -179,11 +179,16 @@ export class Tile extends Phaser.GameObjects.Image {
             targets: this,
             scaleX: 0.9,
             scaleY: 1.1,
-            y: '-=20',
+            y: '-=15',
             ease: 'Power2',
+            startDelay: 1000,
             yoyo: true,
             repeat: 1,
             duration: 300,
+            onComplete: ()=> {
+                this.hintEffect.destroy()
+            },
+            onCompleteScope: this,
         })
     }
 
