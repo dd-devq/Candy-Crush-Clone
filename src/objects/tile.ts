@@ -32,7 +32,7 @@ export class Tile extends Phaser.GameObjects.Image {
         this.selectEffect = this.scene.tweens.add({
             targets: this,
             scaleX: 1.1,
-            scaleY: 0.,
+            scaleY: 0.9,
             repeat: -1,
             yoyo: true,
             duration: 200,
@@ -182,7 +182,7 @@ export class Tile extends Phaser.GameObjects.Image {
             y: '-=20',
             ease: 'Power2',
             yoyo: true,
-            repeat: 2,
+            repeat: 1,
             duration: 300,
         })
     }

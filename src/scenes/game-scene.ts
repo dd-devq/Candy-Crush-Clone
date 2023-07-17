@@ -29,7 +29,8 @@ export class GameScene extends Phaser.Scene {
     create(): void {
 
         this.cameras.main.setBackgroundColor(0x78aade)
-        this.scoreBoard = new Panel(this, 100, this.cameras.main.height / 1.25).setDepth(10)
+        this.scoreBoard = new Panel(this, this.cameras.main.width / 2 - 250, this.cameras.main.height / 1.25).setDepth(10)
+        
         this.shuffle()
         this.firstSelectedTile = undefined
         this.secondSelectedTile = undefined
@@ -40,7 +41,6 @@ export class GameScene extends Phaser.Scene {
     update(time: number, delta: number): void {
         this.idleTime += delta
         this.hintTime += delta
-        const hintList = this.hintTiles()
 
         if (this.IDLE_TIME <= this.idleTime) {
             this.grid.forEach((tile) => {
@@ -50,6 +50,7 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (this.boardState == boardState.IDLE && this.hintTime >= this.HINT_TIME) {
+        const hintList = this.hintTiles()
             
             const index = Phaser.Math.RND.between(0, hintList.length -1)
             for (const key of hintList[index]) {
@@ -69,7 +70,9 @@ export class GameScene extends Phaser.Scene {
                     tile?.destroy()
                 })
                 this.grid.clear()
-                this.shuffle()
+            this.checkTweensComplete().then(() => {
+
+                this.shuffle()})
             })
             this.scoreBoard.newPhase = false
         }
