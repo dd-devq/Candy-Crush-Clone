@@ -358,7 +358,7 @@ export class GameScene extends Phaser.Scene {
                 }
             }
         }
-        this.scoreBoard.addScore(score)
+        this.scoreBoard.addScore(score+10)
 
         this.checkTweensComplete().then(() => {
             const burstTile = this.grid.get(listMatches[listMatches.length - 1])

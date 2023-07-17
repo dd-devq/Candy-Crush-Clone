@@ -56,6 +56,7 @@ export class BootScene extends Phaser.Scene {
             this.cameras.main.width / 2 + 4,
             20
         )
+        
         this.progressBar = this.add.graphics()
     }
 }

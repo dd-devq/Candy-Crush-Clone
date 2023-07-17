@@ -3,14 +3,17 @@ export class Panel extends Phaser.GameObjects.Container {
     private phaseScore = 500
     private scoreText:Phaser.GameObjects.Text
     private background: Phaser.GameObjects.Graphics
+    private loadingBar: Phaser.GameObjects.Graphics
+    private progressBar: Phaser.GameObjects.Graphics
 
     public newPhase = false
+
     constructor(scene:Phaser.Scene, x:number, y:number) {
         super(scene, x, y)
-        this.scoreText = this.scene.add.text(0, 0, '0', {fontSize: 32})
+        this.scoreText = this.scene.add.text(this.scene.cameras.main.width /2 - x, this.scene.cameras.main.height /2 - y/1.75, 'SCORE: ' + '0', {fontSize: 32}).setOrigin(0.5)
         
         this.background = this.scene.add.graphics()
-        this.background.lineStyle(3, 0xFFD580, 1)
+        this.background.lineStyle(3, 0xFFA500, 1)
         this.background.fillStyle(0x000000, 0.8).setAlpha(0.75)    
         
         const width = 500 
@@ -19,18 +22,38 @@ export class Panel extends Phaser.GameObjects.Container {
         
         this.background.fillRoundedRect(0, 0, width, height, cornerRadius)
         this.background.strokeRoundedRect(0, 0, width, height, cornerRadius)
-
+        this.createLoadingBar()
         this.add(this.background)
         this.add(this.scoreText)
+        this.add(this.loadingBar)
+        this.add(this.progressBar)
         this.scene.add.existing(this)
+    }
+
+    private createLoadingBar():void {
+        this.loadingBar = this.scene.add.graphics()
+        this.loadingBar.fillStyle(0x78aade, 1)
+        this.loadingBar.fillRect(0, this.scene.cameras.main.height /2 - this.y/2,
+            500,
+            20
+        )
+        this.progressBar = this.scene.add.graphics()
     }
 
     public addScore(score:number) {
         this.score += score
-        this.scoreText.setText(this.score.toString())
+        this.scoreText.setText('SCORE: ' + this.score.toString())
+        this.progressBar.clear()
+        this.progressBar.fillStyle(0xFFA500, 1)
+        this.progressBar.fillRect(
+            0, this.scene.cameras.main.height /2 - this.y/2,
+            500 * (this.score/this.phaseScore >=1 ?1:this.score/this.phaseScore),
+            20
+        )
         if (this.phaseScore <= this.score) {
             this.newPhase = true
             this.phaseScore = this.score * 1.5
         }
+
     }
 }
