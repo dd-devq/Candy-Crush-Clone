@@ -1,6 +1,6 @@
 export class Panel extends Phaser.GameObjects.Container {
     private score = 0
-    private phaseScore = 300
+    private phaseScore = 500
     private scoreText:Phaser.GameObjects.Text
     public newPhase = false
     constructor(scene:Phaser.Scene, x:number, y:number) {
