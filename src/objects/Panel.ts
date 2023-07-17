@@ -2,10 +2,14 @@ export class Panel extends Phaser.GameObjects.Container {
     private score = 0
     private phaseScore = 500
     private scoreText:Phaser.GameObjects.Text
+    private background: Phaser.GameObjects.Graphics
+
     public newPhase = false
     constructor(scene:Phaser.Scene, x:number, y:number) {
         super(scene, x, y)
         this.scoreText = this.scene.add.text(0, 0, '0', {fontSize: 32})
+        this.background = this.scene.add.graphics()
+        
         this.add(this.scoreText)
         this.scene.add.existing(this)
     }

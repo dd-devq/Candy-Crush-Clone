@@ -2,6 +2,11 @@ import { CONST } from '../const/const'
 import { Panel } from '../objects/Panel'
 import { Tile } from '../objects/Tile'
 
+enum boardState {
+    IDLE = 0,
+    ACTIVE = 1
+}
+
 export class GameScene extends Phaser.Scene {
     private grid: Map<string, Tile | undefined> = new Map<string, Tile | undefined>()
 
@@ -10,9 +15,10 @@ export class GameScene extends Phaser.Scene {
 
     private scoreBoard: Panel
     private idleTime = 0
-
-    private readonly IDLE_TIME = 15000
-
+    private hintTime =0
+    private readonly IDLE_TIME = 10000
+    private readonly HINT_TIME = 6000
+    private boardState: boardState
 
     constructor() {
         super({
@@ -23,23 +29,33 @@ export class GameScene extends Phaser.Scene {
     create(): void {
 
         this.cameras.main.setBackgroundColor(0x78aade)
-
         this.scoreBoard = new Panel(this, 100, this.cameras.main.height / 1.25).setDepth(10)
         this.shuffle()
         this.firstSelectedTile = undefined
         this.secondSelectedTile = undefined
-
+        this.boardState = boardState.ACTIVE
         this.input.on('gameobjectdown', this.tileDown, this)
     }
 
     update(time: number, delta: number): void {
         this.idleTime += delta
+        this.hintTime += delta
+        const hintList = this.hintTiles()
 
         if (this.IDLE_TIME <= this.idleTime) {
             this.grid.forEach((tile) => {
                 tile?.showIdleEffect()
             })
             this.idleTime = 0
+        }
+
+        if (this.boardState == boardState.IDLE && this.hintTime >= this.HINT_TIME) {
+            
+            const index = Phaser.Math.RND.between(0, hintList.length -1)
+            for (const key of hintList[index]) {
+                this.grid.get(key)?.showHintEffect()
+            }
+            this.hintTime = 0
         }
 
         this.grid.forEach((tile) => {
@@ -59,7 +75,6 @@ export class GameScene extends Phaser.Scene {
         }
 
     }
-
     private addTile(x: number, y: number): Tile {
         const randomTileType: string =
             CONST.candyTypes[Phaser.Math.RND.between(0, CONST.candyTypes.length - 1)]
@@ -73,7 +88,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private shuffle(): void {
-
+        this.boardState = boardState.ACTIVE
         for (let i = 0; i < CONST.gridHeight; i++) {
             for (let j = 0; j < CONST.gridWidth; j++) {
                 this.grid.set(this.indexToKey(i, j), undefined)
@@ -123,6 +138,7 @@ export class GameScene extends Phaser.Scene {
         this.checkTweensComplete().then(() => {
             this.checkMatches()
         })
+        this.idleTime = 0
     }
 
 
@@ -184,9 +200,11 @@ export class GameScene extends Phaser.Scene {
     private resetTiles(): void {
         this.firstSelectedTile = undefined
         this.secondSelectedTile = undefined
+        this.boardState = boardState.IDLE
     }
 
     private swapTiles(): void {
+        this.boardState = boardState.ACTIVE
         if (this.firstSelectedTile !== undefined && this.secondSelectedTile !== undefined) {
             this.idleTime = 0
             this.grid.set(this.getTileKey(this.firstSelectedTile?.x, this.firstSelectedTile?.y), this.secondSelectedTile)
@@ -226,6 +244,7 @@ export class GameScene extends Phaser.Scene {
 
 
     private checkMatches(): void {
+        this.boardState = boardState.ACTIVE
         const listMatches = this.getMatches()
 
         if (listMatches.length > 0) {
@@ -240,12 +259,12 @@ export class GameScene extends Phaser.Scene {
 
             this.checkTweensComplete().then(() => {
                 this.updateGrid()
+                // this.checkTweensComplete().then(() => {
+                this.fillTiles()
                 this.checkTweensComplete().then(() => {
-                    this.fillTiles()
-                    this.checkTweensComplete().then(() => {
-                        this.checkMatches()
-                    })
+                    this.checkMatches()
                 })
+                // })
             })
             this.idleTime = 0
         }
@@ -253,7 +272,9 @@ export class GameScene extends Phaser.Scene {
             this.swapTiles()
         }
 
-        this.resetTiles()
+        this.checkTweensComplete().then(()=> {
+            this.resetTiles()
+        })
     }
 
     private getAdjacentBurstTiles(indexKey: string): string[] {
@@ -335,6 +356,7 @@ export class GameScene extends Phaser.Scene {
                 }
             }
         }
+        this.scoreBoard.addScore(score)
 
         this.checkTweensComplete().then(() => {
             const burstTile = this.grid.get(listMatches[listMatches.length - 1])
@@ -348,8 +370,6 @@ export class GameScene extends Phaser.Scene {
                 }
             }
         })
-
-        this.scoreBoard.addScore(score)
     }
 
     checkTweensComplete() {
@@ -495,4 +515,68 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    private hintTiles(): string[][] {
+        let listHint: string[][] = []
+        for (let i = 0; i < CONST.gridHeight; i++) {
+
+            for (let j = 0; j < CONST.gridWidth - 1; j++) {
+                const tile1Key = this.indexToKey(i, j)
+                const tile2Key = this.indexToKey(i, j + 1)
+                const tile1 = this.grid.get(tile1Key)
+                const tile2 = this.grid.get(tile2Key)
+
+                this.grid.set(this.indexToKey(i, j), tile2)
+                this.grid.set(this.indexToKey(i, j + 1), tile1)
+                if (this.getMatches().length > 0) {
+                    const listMatches = this.getMatches()
+                    for (const listKey of listMatches) {
+                        const tileIndex = listKey.indexOf(tile1Key)
+                        if (tileIndex == -1) {
+                            const tileIndex = listKey.indexOf(tile2Key)
+                            listKey.splice(tileIndex, 1, tile1Key)
+                        } else {
+                            listKey.splice(tileIndex, 1, tile2Key)
+                        }
+                    }
+
+                    listHint = listHint.concat(listMatches)
+                }
+                this.grid.set(this.indexToKey(i, j), tile1)
+                this.grid.set(this.indexToKey(i, j + 1), tile2)
+            }
+        }
+
+        for (let i = 0; i < CONST.gridHeight - 1; i++) {
+
+            for (let j = 0; j < CONST.gridWidth; j++) {
+                const tile1Key = this.indexToKey(i, j)
+                const tile2Key = this.indexToKey(i +1, j)
+                const tile1 = this.grid.get(tile1Key)
+                const tile2 = this.grid.get(tile2Key)
+
+                this.grid.set(this.indexToKey(i, j), tile2)
+                this.grid.set(this.indexToKey(i + 1, j), tile1)
+
+                if (this.getMatches().length > 0) {
+                    const listMatches = this.getMatches()
+                    for (const listKey of listMatches) {
+                        const tileIndex = listKey.indexOf(tile1Key)
+                        if (tileIndex == -1) {
+                            const tileIndex = listKey.indexOf(tile2Key)
+                            listKey.splice(tileIndex, 1, tile1Key)
+                        } else {
+                            listKey.splice(tileIndex, 1, tile2Key)
+                        }
+                    }
+
+                    listHint = listHint.concat(listMatches)
+                }
+
+                this.grid.set(this.indexToKey(i, j), tile1)
+                this.grid.set(this.indexToKey(i + 1, j), tile2)
+            }
+        }
+        console.log(listHint)
+        return listHint
+    }
 }

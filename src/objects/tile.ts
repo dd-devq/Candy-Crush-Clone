@@ -32,7 +32,7 @@ export class Tile extends Phaser.GameObjects.Image {
         this.selectEffect = this.scene.tweens.add({
             targets: this,
             scaleX: 1.1,
-            scaleY: 0.9,
+            scaleY: 0.,
             repeat: -1,
             yoyo: true,
             duration: 200,
@@ -51,7 +51,7 @@ export class Tile extends Phaser.GameObjects.Image {
             emitting: false
         })
 
-        this.burstParticleEmitterBig = this.scene.add.particles(this.x, this.y, 'flares', {
+        this.burstParticleEmitterSmall = this.scene.add.particles(this.x, this.y, 'flares', {
             frame: 'white',
             color: [0x96e0da, 0x937ef3],
             colorEase: 'quart.out',
@@ -66,7 +66,7 @@ export class Tile extends Phaser.GameObjects.Image {
             rotate: { start: 0, end: 360 },
         }).setDepth(-1).setVisible(false).setActive(false)
 
-        this.burstParticleEmitterSmall = this.scene.add.particles(this.x, this.y, 'flares', {
+        this.burstParticleEmitterBig = this.scene.add.particles(this.x, this.y, 'flares', {
             frame: 'white',
             color: [0xfacc22, 0xf89800, 0xf83600, 0x9f0404],
             colorEase: 'quad.out',
@@ -80,7 +80,7 @@ export class Tile extends Phaser.GameObjects.Image {
             accelerationY: -20,
             rotate: { start: 0, end: 360 },
         }).setDepth(-1).setVisible(false).setActive(false)
-    
+
         this.burstParticleEmitterBig.pause()
         this.burstParticleEmitterSmall.pause()
     }
@@ -146,7 +146,7 @@ export class Tile extends Phaser.GameObjects.Image {
 
             this.burstParticleEmitterSmall.setActive(false).setVisible(false)
             this.burstParticleEmitterSmall
-            .stop()
+                .stop()
         }
 
         if (this.burstParticleEmitterBig) {
@@ -174,8 +174,17 @@ export class Tile extends Phaser.GameObjects.Image {
 
 
 
-    public showMatchEffect(): void {
-        //
+    public showHintEffect(): void {
+        this.hintEffect = this.scene.tweens.add({
+            targets: this,
+            scaleX: 0.9,
+            scaleY: 1.1,
+            y: '-=20',
+            ease: 'Power2',
+            yoyo: true,
+            repeat: 2,
+            duration: 300,
+        })
     }
 
     public getKey(): string {
@@ -186,10 +195,10 @@ export class Tile extends Phaser.GameObjects.Image {
         if (this.isBurst) {
             this.burstParticleEmitterSmall.x = this.x
             this.burstParticleEmitterSmall.y = this.y
-        
+
             this.burstParticleEmitterBig.x = this.x
             this.burstParticleEmitterBig.y = this.y
         }
-    
+
     }
 }
