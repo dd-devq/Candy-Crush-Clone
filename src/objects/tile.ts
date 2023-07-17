@@ -7,7 +7,8 @@ export class Tile extends Phaser.GameObjects.Image {
     private idleEffect: Phaser.Tweens.BaseTween
 
     private particleEmitter: Phaser.GameObjects.Particles.ParticleEmitter
-    public burstParticleEmitter: Phaser.GameObjects.Particles.ParticleEmitter
+    public burstParticleEmitterBig: Phaser.GameObjects.Particles.ParticleEmitter
+    public burstParticleEmitterSmall: Phaser.GameObjects.Particles.ParticleEmitter
     private tileGraphics: Phaser.GameObjects.Graphics
 
     public isBurst: boolean
@@ -50,6 +51,38 @@ export class Tile extends Phaser.GameObjects.Image {
             emitting: false
         })
 
+        this.burstParticleEmitterBig = this.scene.add.particles(this.x, this.y, 'flares', {
+            frame: 'white',
+            color: [0x96e0da, 0x937ef3],
+            colorEase: 'quart.out',
+            lifespan: 500,
+            speed: 100,
+            quantity: 10,
+            blendMode: 'ADD',
+            scale: { start: 0.25, end: 0 },
+            alpha: { start: 1, end: 0 },
+            gravityY: 0,
+            accelerationY: -20,
+            rotate: { start: 0, end: 360 },
+        }).setDepth(-1).setVisible(false).setActive(false)
+
+        this.burstParticleEmitterSmall = this.scene.add.particles(this.x, this.y, 'flares', {
+            frame: 'white',
+            color: [0xfacc22, 0xf89800, 0xf83600, 0x9f0404],
+            colorEase: 'quad.out',
+            lifespan: 500,
+            speed: 100,
+            quantity: 20,
+            blendMode: 'ADD',
+            scale: { start: 0.25, end: 0 },
+            alpha: { start: 1, end: 0 },
+            gravityY: 0,
+            accelerationY: -20,
+            rotate: { start: 0, end: 360 },
+        }).setDepth(-1).setVisible(false).setActive(false)
+    
+        this.burstParticleEmitterBig.pause()
+        this.burstParticleEmitterSmall.pause()
     }
 
 
@@ -99,46 +132,29 @@ export class Tile extends Phaser.GameObjects.Image {
 
     public burst(isBig: boolean): void {
         if (isBig) {
-            this.burstParticleEmitter = this.scene.add.particles(this.x, this.y, 'flares', {
-                frame: 'white',
-                color: [0x96e0da, 0x937ef3],
-                colorEase: 'quart.out',
-                lifespan: 500,
-                speed: 100,
-                quantity: 10,
-                blendMode: 'ADD',
-                scale: { start: 0.25, end: 0 },
-                alpha: { start: 1, end: 0 },
-                gravityY: 0,
-                accelerationY: -20, // Acceleration in the Y direction
-                rotate: { start: 0, end: 360 }, // Rotation range of the particles
-            }).setDepth(-1)
+            this.burstParticleEmitterBig.setActive(true).setVisible(true)
+            this.burstParticleEmitterBig.resume()
         }
         else {
-            this.burstParticleEmitter = this.scene.add.particles(this.x, this.y, 'flares',
-                {
-                    frame: 'white',
-                    color: [0xfacc22, 0xf89800, 0xf83600, 0x9f0404],
-                    colorEase: 'quad.out',
-                    lifespan: 500,
-                    speed: 100,
-                    quantity: 20,
-                    blendMode: 'ADD',
-                    scale: { start: 0.25, end: 0 },
-                    alpha: { start: 1, end: 0 },
-                    gravityY: 0,
-                    accelerationY: -20, // Acceleration in the Y direction
-                    rotate: { start: 0, end: 360 }, // Rotation range of the particles
-                    }).setDepth(-1)
+            this.burstParticleEmitterSmall.setActive(true).setVisible(true)
+            this.burstParticleEmitterSmall.resume()
         }
     }
 
     public stopBurst(): void {
-        if (this.burstParticleEmitter) {
+        if (this.burstParticleEmitterSmall) {
 
-            this.burstParticleEmitter.setActive(false).setVisible(false)
-            this.burstParticleEmitter.stop()
+            this.burstParticleEmitterSmall.setActive(false).setVisible(false)
+            this.burstParticleEmitterSmall
+            .stop()
         }
+
+        if (this.burstParticleEmitterBig) {
+
+            this.burstParticleEmitterBig.setActive(false).setVisible(false)
+            this.burstParticleEmitterBig.stop()
+        }
+
     }
 
 
@@ -168,9 +184,12 @@ export class Tile extends Phaser.GameObjects.Image {
 
     public update(): void {
         if (this.isBurst) {
-
-            this.burstParticleEmitter.x = this.x
-            this.burstParticleEmitter.y = this.y
+            this.burstParticleEmitterSmall.x = this.x
+            this.burstParticleEmitterSmall.y = this.y
+        
+            this.burstParticleEmitterBig.x = this.x
+            this.burstParticleEmitterBig.y = this.y
         }
+    
     }
 }

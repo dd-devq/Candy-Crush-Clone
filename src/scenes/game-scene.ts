@@ -23,11 +23,6 @@ export class GameScene extends Phaser.Scene {
     create(): void {
 
         this.cameras.main.setBackgroundColor(0x78aade)
-        for (let x = 0; x < CONST.gridHeight; x++) {
-            for (let y = 0; y < CONST.gridWidth; y++) {
-                this.grid.set(this.indexToKey(x, y), undefined)
-            }
-        }
 
         this.scoreBoard = new Panel(this, 100, this.cameras.main.height / 1.25).setDepth(10)
         this.shuffle()
@@ -38,6 +33,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     update(time: number, delta: number): void {
+        this.idleTime += delta
 
         if (this.IDLE_TIME <= this.idleTime) {
             this.grid.forEach((tile) => {
@@ -45,23 +41,23 @@ export class GameScene extends Phaser.Scene {
             })
             this.idleTime = 0
         }
+
+        this.grid.forEach((tile) => {
+            tile?.update()
+        })
+
         if (this.scoreBoard.newPhase) {
             this.checkTweensComplete().then(() => {
                 this.grid.forEach((tile) => {
                     tile?.stopBurst()
                     tile?.destroy()
                 })
-
                 this.grid.clear()
                 this.shuffle()
             })
             this.scoreBoard.newPhase = false
         }
-        this.idleTime += delta
 
-        this.grid.forEach((tile) => {
-            tile?.update()
-        })
     }
 
     private addTile(x: number, y: number): Tile {
@@ -77,12 +73,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     private shuffle(): void {
-        const shuffleShape = this.getShuffleShape()
+
         for (let i = 0; i < CONST.gridHeight; i++) {
             for (let j = 0; j < CONST.gridWidth; j++) {
                 this.grid.set(this.indexToKey(i, j), undefined)
             }
         }
+
+        const shuffleShape = this.getShuffleShape()
+
         for (let i = 0; i < CONST.gridHeight; i++) {
             for (let j = 0; j < CONST.gridWidth; j++) {
                 const tile = this.addTile(i, j)
@@ -120,6 +119,7 @@ export class GameScene extends Phaser.Scene {
                 )
             }
         }
+
         this.checkTweensComplete().then(() => {
             this.checkMatches()
         })
@@ -149,27 +149,28 @@ export class GameScene extends Phaser.Scene {
 
     private tileDown(pointer: Phaser.Input.Pointer, gameobject: Tile): void {
 
-            this.idleTime = 0
-            if (this.firstSelectedTile === undefined) {
+        this.idleTime = 0
+        if (this.firstSelectedTile === undefined) {
+            this.firstSelectedTile = gameobject
+            this.firstSelectedTile.showSelectEffect()
+        } else {
+            if (this.isAdjacentTile(this.firstSelectedTile, gameobject)) {
+                this.firstSelectedTile.deselect()
+
+                if (this.firstSelectedTile === gameobject) {
+                    this.firstSelectedTile = undefined
+                } else {
+                    this.secondSelectedTile = gameobject
+                    this.input.enabled = false
+                    this.swapTiles()
+                }
+
+            } else {
+                this.firstSelectedTile.deselect()
                 this.firstSelectedTile = gameobject
                 this.firstSelectedTile.showSelectEffect()
-            } else {
-                if (this.isAdjacentTile(this.firstSelectedTile, gameobject)) {
-                    this.firstSelectedTile.deselect()
-
-                    if (this.firstSelectedTile === gameobject) {
-                        this.firstSelectedTile = undefined
-                    } else {
-                        this.secondSelectedTile = gameobject
-                        this.swapTiles()
-                    }
-
-                } else {
-                    this.firstSelectedTile.deselect()
-                    this.firstSelectedTile = gameobject
-                    this.firstSelectedTile.showSelectEffect()
-                }
             }
+        }
     }
     private isAdjacentTile(tile1: Tile, tile2: Tile): boolean {
         const dx =
@@ -184,7 +185,8 @@ export class GameScene extends Phaser.Scene {
     private resetTiles(): void {
         this.firstSelectedTile = undefined
         this.secondSelectedTile = undefined
-          }
+        this.input.enabled = true
+    }
 
     private swapTiles(): void {
         if (this.firstSelectedTile !== undefined && this.secondSelectedTile !== undefined) {
@@ -203,7 +205,6 @@ export class GameScene extends Phaser.Scene {
                 yoyo: false,
             })
 
-
             const tween2 = this.add.tween({
                 targets: this.secondSelectedTile,
                 x: this.firstSelectedTile.x,
@@ -220,8 +221,6 @@ export class GameScene extends Phaser.Scene {
                 },
             })
 
-
-
             this.firstSelectedTile = this.grid.get(this.getTileKey(this.firstSelectedTile?.x, this.firstSelectedTile?.y))
             this.secondSelectedTile = this.grid.get(this.getTileKey(this.secondSelectedTile?.x, this.secondSelectedTile?.y))
         }
@@ -229,13 +228,11 @@ export class GameScene extends Phaser.Scene {
 
 
     private checkMatches(): void {
+        this.input.enabled = false
         const listMatches = this.getMatches()
 
-        // for (const list of listMatches) {
-        //     console.log(list)
-        // }
-
         if (listMatches.length > 0) {
+
             for (const listKey of listMatches) {
                 if (listKey.length == 3) {
                     this.handle3Mathces(listKey)
@@ -243,51 +240,23 @@ export class GameScene extends Phaser.Scene {
                     this.handleGreaterThan3Mathces(listKey)
                 }
             }
-            this.checkTweensComplete().then(() => {
-                this.updateGrid()
-            })
 
             this.checkTweensComplete().then(() => {
-                this.fillTiles()
+                this.updateGrid()
                 this.checkTweensComplete().then(() => {
-                    this.checkMatches()
+                    this.fillTiles()
+                    this.checkTweensComplete().then(() => {
+                        this.checkMatches()
+                    })
                 })
             })
         }
         else {
             this.swapTiles()
         }
+
         this.resetTiles()
     }
-
-    private handle3Mathces(listMatches: string[]): void {
-        let score = 0
-
-
-        for (const key of listMatches) {
-            const tile = this.grid.get(key)
-            if (tile) {
-                if (tile.isBurst) {
-                    listMatches = listMatches.concat(this.getAdjacentBurstTiles(key))
-                    tile.isBurst = false
-                }
-            }
-        }
-
-        // console.log(listMatches)
-
-        for (const key of listMatches) {
-            const tile = this.grid.get(key)
-            tile?.stopBurst()
-            tile?.explode()
-            tile?.destroy()
-            this.grid.set(key, undefined)
-            score += 10
-        }
-        this.scoreBoard.addScore(score)
-
-    }
-
 
     private getAdjacentBurstTiles(indexKey: string): string[] {
         const direction: { [key: number]: { x: number, y: number } } = {
@@ -313,31 +282,36 @@ export class GameScene extends Phaser.Scene {
         return listBurstTile
     }
 
-    private handleGreaterThan3Mathces(listMatches: string[]): void {
-        // Not Good Enough, 4 with 1 burst
+    private handle3Mathces(listMatches: string[]): void {
         let score = 0
+
         for (const key of listMatches) {
             const tile = this.grid.get(key)
             if (tile) {
                 if (tile.isBurst) {
-                    this.grid.forEach((tile) => {
-                        score += 10
-                        tile?.explode()
-                        tile?.stopBurst()
-                        tile?.destroy()
-                        tile = undefined
-                        this.cameras.main.shake(150, 0.0125)
-                    })
-
-                    this.scoreBoard.addScore(score)
-                    this.shuffle()
-                    return
+                    listMatches = listMatches.concat(this.getAdjacentBurstTiles(key))
+                    tile.isBurst = false
                 }
             }
         }
 
 
+        for (const key of listMatches) {
+            const tile = this.grid.get(key)
+            tile?.stopBurst()
+            tile?.explode()
+            tile?.destroy()
+            this.grid.set(key, undefined)
+            score += 10
+        }
+        this.scoreBoard.addScore(score)
 
+    }
+
+
+    private handleGreaterThan3Mathces(listMatches: string[]): void {
+        let score = 0
+        
         for (let i = 0; i < listMatches.length; i++) {
             if (i !== listMatches.length - 1) {
                 const tempTile = this.grid.get(listMatches[i])
@@ -365,7 +339,6 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.checkTweensComplete().then(() => {
-
             const burstTile = this.grid.get(listMatches[listMatches.length - 1])
             if (burstTile !== undefined) {
                 burstTile.isBurst = true
@@ -389,7 +362,7 @@ export class GameScene extends Phaser.Scene {
                 if (playingTweens.length === 0) {
                     resolve()
                 } else {
-                    setTimeout(checkComplete, 200)
+                    setTimeout(checkComplete, 100)
                 }
             }
 
@@ -418,7 +391,6 @@ export class GameScene extends Phaser.Scene {
                             }
                             listOfListKey.push(listKey)
                             listKey = []
-
                         }
                     }
                     else {
