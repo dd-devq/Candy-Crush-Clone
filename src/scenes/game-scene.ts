@@ -148,7 +148,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     private tileDown(pointer: Phaser.Input.Pointer, gameobject: Tile): void {
-
         this.idleTime = 0
         if (this.firstSelectedTile === undefined) {
             this.firstSelectedTile = gameobject
@@ -161,7 +160,6 @@ export class GameScene extends Phaser.Scene {
                     this.firstSelectedTile = undefined
                 } else {
                     this.secondSelectedTile = gameobject
-                    this.input.enabled = false
                     this.swapTiles()
                 }
 
@@ -172,6 +170,7 @@ export class GameScene extends Phaser.Scene {
             }
         }
     }
+
     private isAdjacentTile(tile1: Tile, tile2: Tile): boolean {
         const dx =
             Math.abs(tile1.x - tile2.x) /
@@ -185,7 +184,6 @@ export class GameScene extends Phaser.Scene {
     private resetTiles(): void {
         this.firstSelectedTile = undefined
         this.secondSelectedTile = undefined
-        this.input.enabled = true
     }
 
     private swapTiles(): void {
@@ -228,7 +226,6 @@ export class GameScene extends Phaser.Scene {
 
 
     private checkMatches(): void {
-        this.input.enabled = false
         const listMatches = this.getMatches()
 
         if (listMatches.length > 0) {
@@ -250,6 +247,7 @@ export class GameScene extends Phaser.Scene {
                     })
                 })
             })
+            this.idleTime = 0
         }
         else {
             this.swapTiles()
@@ -311,7 +309,7 @@ export class GameScene extends Phaser.Scene {
 
     private handleGreaterThan3Mathces(listMatches: string[]): void {
         let score = 0
-        
+
         for (let i = 0; i < listMatches.length; i++) {
             if (i !== listMatches.length - 1) {
                 const tempTile = this.grid.get(listMatches[i])
