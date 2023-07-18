@@ -68,11 +68,12 @@ export class GameScene extends Phaser.Scene {
                 })
                 this.grid.clear()
                 this.checkTweensComplete().then(() => {
-
                     this.shuffle()
                 })
             })
             this.scoreBoard.newPhase = false
+            this.scoreBoard.addScore(0)
+
         }
 
     }
