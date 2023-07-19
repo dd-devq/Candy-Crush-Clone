@@ -33,6 +33,7 @@ export class GameScene extends Phaser.Scene {
         this.firstSelectedTile = undefined
         this.secondSelectedTile = undefined
         this.boardState = boardState.ACTIVE
+
         this.input.on('gameobjectdown', this.tileDown, this)
     }
 
@@ -66,13 +67,15 @@ export class GameScene extends Phaser.Scene {
                     tile?.stopBurst()
                     tile?.destroy()
                 })
+
                 this.grid.clear()
                 this.checkTweensComplete().then(() => {
-                    this.shuffle()
+                    // Particle Manger
+                        this.shuffle()
                 })
             })
-            this.scoreBoard.newPhase = false
             this.scoreBoard.addScore(0)
+            this.scoreBoard.newPhase = false
 
         }
 

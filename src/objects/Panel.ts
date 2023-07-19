@@ -52,12 +52,13 @@ export class Panel extends Phaser.GameObjects.Container {
             500 * (this.score / this.phaseScore >= 1 ? 1 : this.score / this.phaseScore),
             20
         )
+        
         if (this.phaseScore <= this.score) {
             this.newPhase = true
             this.phaseScore = this.score * 1.5
 
-            this.scene.add.particles(this.scene.cameras.main.width / 2, this.scene.cameras.main.height, 'confetti', {
-                lifespan: 15000,
+            const particles = this.scene.add.particles(this.scene.cameras.main.width / 2, this.scene.cameras.main.height, 'confetti', {
+                lifespan: 10000,
                 frame: ['red.png', 'yellow.png', 'green.png', 'orange.png', 'blue.png', 'pink.png'],
                 angle: { min: 180, max: 360 },
                 speedX: { min: -75, max: 75 },
@@ -66,7 +67,9 @@ export class Panel extends Phaser.GameObjects.Container {
                 scale: { min: 0.1, max: 1.5 },
                 emitting: true,
                 particleClass: Confetti,
-            }).explode(150)
+            })
+            particles.explode(150)
+            particles.setDepth(10)
         }
 
     }
