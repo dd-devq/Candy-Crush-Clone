@@ -55,11 +55,11 @@ export class Tile extends Phaser.GameObjects.Image {
             frame: 'white',
             color: [0x96e0da, 0x937ef3],
             colorEase: 'quart.out',
-            lifespan: 500,
+            lifespan: 250,
             speed: 100,
             quantity: 10,
             blendMode: 'ADD',
-            scale: { start: 0.25, end: 0 },
+            scale: { start: 0.1, end: 0.5 },
             alpha: { start: 1, end: 0 },
             gravityY: 0,
             accelerationY: -20,
@@ -70,11 +70,11 @@ export class Tile extends Phaser.GameObjects.Image {
             frame: 'white',
             color: [0xfacc22, 0xf89800, 0xf83600, 0x9f0404],
             colorEase: 'quad.out',
-            lifespan: 500,
+            lifespan: 250,
             speed: 100,
             quantity: 20,
             blendMode: 'ADD',
-            scale: { start: 0.25, end: 0 },
+            scale: { start: 0.1, end: 0.5 },
             alpha: { start: 1, end: 0 },
             gravityY: 0,
             accelerationY: -20,
@@ -141,6 +141,21 @@ export class Tile extends Phaser.GameObjects.Image {
         }
     }
 
+    override destroy(fromScene?: boolean | undefined): void {
+        this.setTint(0xFFFFFF)
+        this.scene.add.tween({
+            targets: this,
+            scale: 0.25,
+            yoyo: false,
+            repeat: 0,
+            duration: 150,
+            onComplete: () => {
+                super.destroy(fromScene)
+            }, onCompleteScope: this
+        })
+
+    }
+
     public stopBurst(): void {
         if (this.burstParticleEmitterSmall) {
 
@@ -185,7 +200,7 @@ export class Tile extends Phaser.GameObjects.Image {
             yoyo: true,
             repeat: 1,
             duration: 300,
-            onComplete: ()=> {
+            onComplete: () => {
                 this.hintEffect.destroy()
             },
             onCompleteScope: this,
