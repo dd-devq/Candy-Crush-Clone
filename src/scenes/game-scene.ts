@@ -478,8 +478,8 @@ export class GameScene extends Phaser.Scene {
                     this.add.tween({
                         targets: aboveTile,
                         y: CONST.tileHeight * j + CONST.tileHeight / 2,
-                        ease: 'sine.inout',
-                        duration: 400,
+                        ease: 'bounce.out',
+                        duration: 500,
                         repeat: 0,
                         yoyo: false,
                         onComplete: () => {
@@ -508,8 +508,8 @@ export class GameScene extends Phaser.Scene {
                     this.add.tween({
                         targets: newTile,
                         y: CONST.tileHeight * j + CONST.tileHeight / 2,
-                        ease: 'sine.inout',
-                        duration: 300,
+                        ease: 'bounce.out',
+                        duration: 500,
                         repeat: 0,
                         yoyo: false,
                         onComplete: () => {
